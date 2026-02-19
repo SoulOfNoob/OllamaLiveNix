@@ -77,7 +77,7 @@ nix-env -iA nixpkgs.nixos-generators
 No Nix installation needed — Docker Desktop provides the Linux environment:
 
 ```bash
-docker run --rm -it \
+docker run --rm -it --platform linux/amd64 \
   -v "$(pwd)":/workspace \
   -w /workspace \
   nixos/nix bash -c "
