@@ -20,7 +20,7 @@
         modules = [ ./configuration.nix ];
       };
 
-      packages.${system} = {
+      packages.${system} = rec {
         iso = nixos-generators.nixosGenerate {
           inherit system;
           modules = [ ./configuration.nix ];
@@ -32,8 +32,8 @@
           modules = [ ./configuration.nix ];
           format = "raw-efi";
         };
-      };
 
-      packages.${system}.default = self.packages.${system}.iso;
+        default = iso;
+      };
     };
 }

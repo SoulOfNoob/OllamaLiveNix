@@ -56,7 +56,9 @@ ollamalive/
 
 ### 1. Setup Build Environment
 
-Build on the server or any Linux machine (not Mac natively):
+Building NixOS images requires a Linux environment. Choose one of:
+
+#### Option A: Native Linux (server or any Linux machine)
 
 ```bash
 # Install Nix
@@ -69,6 +71,22 @@ echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
 # Install nixos-generators
 nix-env -iA nixpkgs.nixos-generators
 ```
+
+#### Option B: macOS via Docker
+
+No Nix installation needed — Docker Desktop provides the Linux environment:
+
+```bash
+docker run --rm -it \
+  -v "$(pwd)":/workspace \
+  -w /workspace \
+  nixos/nix bash -c "
+    echo 'experimental-features = nix-command flakes' > /etc/nix/nix.conf
+    nix build .#iso
+  "
+```
+
+Replace `.#iso` with `.#raw` to build the USB image. The result appears in `./result/` on the host.
 
 ### 2. Configure
 
