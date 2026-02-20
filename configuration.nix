@@ -34,9 +34,15 @@
     autosuggestions.enable = true;
     syntaxHighlighting.enable = true;
     histSize = 10000;
-    interactiveShellInit = ''
-      # Prevent zsh new-user setup wizard
-      [[ -f ~/.zshrc ]] || touch ~/.zshrc || echo "# prevent setup" > ~/.zshrc
+  };
+
+  system.userActivationScripts.ollamalive-zshrc = {
+    text = ''
+      if [ ! -f /home/ollamalive/.zshrc ]; then
+        printf '#prevent setup\n' > /home/ollamalive/.zshrc
+        chown ollamalive:users /home/ollamalive/.zshrc
+        chmod 0644 /home/ollamalive/.zshrc
+      fi
     '';
   };
 
