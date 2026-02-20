@@ -51,8 +51,37 @@ ollamalive/
 │   └── pr.yml             # PR: builds ISO for validation
 ├── configuration.nix      # Main system config
 ├── flake.nix              # Flake wrapper for reproducible builds
+├── Taskfile.yml           # Task runner (build commands)
 └── README.md              # This file
 ```
+
+## Task Runner
+
+Build commands are managed with [Task](https://taskfile.dev) (`task` CLI).
+
+### Install Task
+
+**macOS:**
+
+```bash
+brew install go-task
+```
+
+**Linux:**
+
+```bash
+sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin
+```
+
+### Available Tasks
+
+| Task | Platform | Output |
+| --- | --- | --- |
+| `task build:mac` | macOS (Docker, x86_64 emulation) | ISO only |
+| `task build:linux:iso` | Linux (Docker) | ISO |
+| `task build:linux:raw` | Linux (Docker + KVM) | Raw EFI image |
+
+The `ollamalive-nix-cache` Docker volume caches the Nix store — only the first build is slow.
 
 ## Quick Start
 
@@ -80,6 +109,16 @@ zstd -d nixos-*.img.zst
 
 If you need to change the NixOS config (NTFS UUID, timezone, etc.), edit the `.nix` files and push to `main`. GitHub Actions will build new images automatically.
 
+### 2b. Local ISO Build (Optional)
+
+Build an ISO locally for VM testing (raw-efi requires KVM, not available on macOS):
+
+```bash
+task build:mac
+```
+
+The ISO lands in `./result/`.
+
 ### 3. Flash to USB
 
 #### Initial setup
@@ -97,6 +136,8 @@ $(brew --prefix)/opt/e2fsprogs/sbin/mkfs.ext4 -L PERSIST /dev/diskXs3
 
 > **Note:** macOS can't mount ext4. On first Linux boot, run:
 > `sudo mkdir -p /persist/docker /persist/ssh`
+> Then add your SSH public key:
+> `sudo sh -c 'cat >> /persist/ssh/authorized_keys' < ~/.ssh/id_ed25519.pub`
 
 #### System update
 
@@ -107,7 +148,26 @@ diskutil unmountDisk /dev/diskX
 sudo dd if=nixos-*.img of=/dev/rdiskX bs=4m count=$BLOCKS status=progress
 ```
 
-### 4. First Boot
+### 4. Test in VM (Optional)
+
+To verify the config before flashing, download the `nixos-*.iso.zst` from Releases and test in UTM:
+
+1. Decompress: `zstd -d nixos-*.iso.zst`
+2. Open UTM → **Create new VM** → **Emulate** (not Virtualize)
+3. Architecture: **x86_64**, System: **Standard PC (Q35)**
+4. RAM: **4096 MB**, skip storage
+5. In VM settings: uncheck **UEFI Boot** under QEMU
+6. Drives → **Import** the `.iso`, set interface to **IDE**, move to top of boot order
+
+It will be slow under emulation but boots to TTY with auto-login. GPU and Docker won't work, but you can verify the config:
+
+```bash
+systemctl list-units --failed
+ip addr
+cat /etc/ssh/sshd_config
+```
+
+### 5. First Boot
 
 Jump to [First Boot on Hardware](#first-boot-on-hardware).
 
@@ -134,17 +194,11 @@ echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
 - Set a real password or add SSH keys for the `ollamalive` user
 - Review Ollama volume path: `/mnt/models/ollama` maps to `/root/.ollama` inside the container
 
-### 3. Validate
+### 3. Build Image
 
 ```bash
-nix flake check
-```
-
-### 4. Build Image
-
-```bash
-nix build .#raw    # Raw EFI disk image for USB (default)
-nix build .#iso    # ISO for testing in VM (optional)
+task build:linux:raw   # Raw EFI disk image for USB (requires KVM)
+task build:linux:iso   # ISO for testing in VM (optional)
 ```
 
 ### 5. Test in VM (Optional)
@@ -163,10 +217,11 @@ sudo dd if=result/nixos.img of=/dev/sdX bs=4M status=progress conv=fsync
 sudo fdisk /dev/sdX   # → n, accept defaults, w
 sudo mkfs.ext4 -L PERSIST /dev/sdX3
 
-# Pre-create directories for bind mounts
+# Pre-create directories and add SSH key
 sudo mkdir -p /mnt/persist
 sudo mount /dev/sdX3 /mnt/persist
 sudo mkdir -p /mnt/persist/docker /mnt/persist/ssh
+cat ~/.ssh/id_ed25519.pub | sudo tee /mnt/persist/ssh/authorized_keys
 sudo umount /mnt/persist
 ```
 

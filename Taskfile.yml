@@ -1,0 +1,67 @@
+version: '3'
+
+vars:
+  NIX_CACHE_VOLUME: ollamalive-nix-cache
+
+tasks:
+  build:mac:
+    desc: Build ISO using Docker (macOS, x86_64 emulation)
+    cmds:
+      - |
+        docker run --rm -it --platform linux/amd64 \
+          --name ollamalive-build \
+          -v "$(pwd)":/workspace \
+          -v {{.NIX_CACHE_VOLUME}}:/nix \
+          -w /workspace \
+          nixos/nix bash -c "
+            echo 'experimental-features = nix-command flakes' > /etc/nix/nix.conf
+            echo 'sandbox = false' >> /etc/nix/nix.conf
+            echo 'filter-syscalls = false' >> /etc/nix/nix.conf
+            echo 'max-jobs = auto' >> /etc/nix/nix.conf
+            echo 'cores = 0' >> /etc/nix/nix.conf
+            nix flake check
+            OUT=\$(nix build .#iso --no-link --print-out-paths)
+            mkdir -p /workspace/result
+            find \$OUT -type f \( -name '*.img' -o -name '*.iso' \) -exec cp -L {} /workspace/result/ \;
+          "
+
+  build:linux:iso:
+    desc: Build ISO using Docker (Linux)
+    cmds:
+      - |
+        docker run --rm -it \
+          --name ollamalive-build \
+          -v "$(pwd)":/workspace \
+          -v {{.NIX_CACHE_VOLUME}}:/nix \
+          -w /workspace \
+          nixos/nix bash -c "
+            echo 'experimental-features = nix-command flakes' > /etc/nix/nix.conf
+            echo 'sandbox = false' >> /etc/nix/nix.conf
+            echo 'max-jobs = auto' >> /etc/nix/nix.conf
+            echo 'cores = 0' >> /etc/nix/nix.conf
+            nix flake check
+            OUT=\$(nix build .#iso --no-link --print-out-paths)
+            mkdir -p /workspace/result
+            find \$OUT -type f \( -name '*.img' -o -name '*.iso' \) -exec cp -L {} /workspace/result/ \;
+          "
+
+  build:linux:raw:
+    desc: Build raw EFI image using Docker (Linux, requires KVM)
+    cmds:
+      - |
+        docker run --rm -it \
+          --device /dev/kvm \
+          --name ollamalive-build \
+          -v "$(pwd)":/workspace \
+          -v {{.NIX_CACHE_VOLUME}}:/nix \
+          -w /workspace \
+          nixos/nix bash -c "
+            echo 'experimental-features = nix-command flakes' > /etc/nix/nix.conf
+            echo 'sandbox = false' >> /etc/nix/nix.conf
+            echo 'max-jobs = auto' >> /etc/nix/nix.conf
+            echo 'cores = 0' >> /etc/nix/nix.conf
+            nix flake check
+            OUT=\$(nix build .#raw --no-link --print-out-paths)
+            mkdir -p /workspace/result
+            find \$OUT -type f -name '*.img' -exec cp -L {} /workspace/result/ \;
+          "
