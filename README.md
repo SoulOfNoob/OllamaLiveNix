@@ -91,6 +91,7 @@ docker run --rm -it --platform linux/amd64 \
     echo 'filter-syscalls = false' >> /etc/nix/nix.conf
     echo 'max-jobs = auto' >> /etc/nix/nix.conf
     echo 'cores = 0' >> /etc/nix/nix.conf
+    nix flake check
     OUT=\$(nix build .#iso --no-link --print-out-paths)
     mkdir -p /workspace/result
     find \$OUT -type f \( -name '*.img' -o -name '*.iso' \) -exec cp -L {} /workspace/result/ \;
