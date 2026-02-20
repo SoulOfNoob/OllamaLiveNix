@@ -12,13 +12,16 @@
     # "${toString pkgs.path}/nixos/modules/installer/cd-dvd/iso-image.nix"
   ];
 
+  # ── Unfree Packages ──────────────────────────────────────────
+  nixpkgs.config.allowUnfree = true;
+
   # ── System Basics ─────────────────────────────────────────────
   system.stateVersion = "24.11";
   networking.hostName = "OllamaLive";
   time.timeZone = "Europe/Berlin"; # adjust to your timezone
 
   # Passwordless auto-login for appliance use
-  users.users.ai = {
+  users.users.ollamalive = {
     isNormalUser = true;
     extraGroups = [ "docker" "video" "render" "wheel" ];
     initialPassword = ""; # set a real password or use SSH keys
@@ -57,7 +60,6 @@
   # ── Docker & Containers ───────────────────────────────────────
   virtualisation.docker = {
     enable = true;
-    enableNvidia = true; # deprecated in newer nixos, use nvidia-container-toolkit above
     autoPrune = {
       enable = true;
       dates = "weekly";
@@ -99,7 +101,7 @@
     fsType = "ntfs-3g";
     options = [
       "rw"
-      "uid=1000"        # maps to the 'ai' user
+      "uid=1000"        # maps to the 'ollamalive' user
       "gid=100"         # users group
       "dmask=022"
       "fmask=133"
@@ -130,7 +132,6 @@
 
     # NVIDIA / CUDA
     cudaPackages.cudatoolkit
-    nvidia-docker
 
     # Networking
     inetutils
@@ -148,7 +149,7 @@
 
   # ── Boot Splash (optional) ────────────────────────────────────
   # Minimal boot, no GUI, straight to services
-  boot.loader.timeout = 3;
+  boot.loader.timeout = lib.mkDefault 3;
 
   # ── Nix Settings ──────────────────────────────────────────────
   nix.settings = {
