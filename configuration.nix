@@ -36,7 +36,7 @@
     histSize = 10000;
     interactiveShellInit = ''
       # Prevent zsh new-user setup wizard
-      [[ -f ~/.zshrc ]] || touch ~/.zshrc
+      [[ -f ~/.zshrc ]] || touch ~/.zshrc || echo "# prevent setup" > ~/.zshrc
     '';
   };
 

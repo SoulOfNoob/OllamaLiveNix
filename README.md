@@ -51,8 +51,37 @@ ollamalive/
 │   └── pr.yml             # PR: builds ISO for validation
 ├── configuration.nix      # Main system config
 ├── flake.nix              # Flake wrapper for reproducible builds
+├── Taskfile.yml           # Task runner (build commands)
 └── README.md              # This file
 ```
+
+## Task Runner
+
+Build commands are managed with [Task](https://taskfile.dev) (`task` CLI).
+
+### Install Task
+
+**macOS:**
+
+```bash
+brew install go-task
+```
+
+**Linux:**
+
+```bash
+sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin
+```
+
+### Available Tasks
+
+| Task | Platform | Output |
+| --- | --- | --- |
+| `task build:mac` | macOS (Docker, x86_64 emulation) | ISO only |
+| `task build:linux:iso` | Linux (Docker) | ISO |
+| `task build:linux:raw` | Linux (Docker + KVM) | Raw EFI image |
+
+The `ollamalive-nix-cache` Docker volume caches the Nix store — only the first build is slow.
 
 ## Quick Start
 
@@ -85,25 +114,10 @@ If you need to change the NixOS config (NTFS UUID, timezone, etc.), edit the `.n
 Build an ISO locally for VM testing (raw-efi requires KVM, not available on macOS):
 
 ```bash
-docker run --rm -it --platform linux/amd64 \
-  --name ollamalive-build \
-  -v "$(pwd)":/workspace \
-  -v ollamalive-nix-cache:/nix \
-  -w /workspace \
-  nixos/nix bash -c "
-    echo 'experimental-features = nix-command flakes' > /etc/nix/nix.conf
-    echo 'sandbox = false' >> /etc/nix/nix.conf
-    echo 'filter-syscalls = false' >> /etc/nix/nix.conf
-    echo 'max-jobs = auto' >> /etc/nix/nix.conf
-    echo 'cores = 0' >> /etc/nix/nix.conf
-    nix flake check
-    OUT=\$(nix build .#iso --no-link --print-out-paths)
-    mkdir -p /workspace/result
-    find \$OUT -type f \( -name '*.img' -o -name '*.iso' \) -exec cp -L {} /workspace/result/ \;
-  "
+task build:mac
 ```
 
-The ISO lands in `./result/`. The `ollamalive-nix-cache` volume caches the Nix store so only the first build is slow.
+The ISO lands in `./result/`.
 
 ### 3. Flash to USB
 
@@ -180,17 +194,11 @@ echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
 - Set a real password or add SSH keys for the `ollamalive` user
 - Review Ollama volume path: `/mnt/models/ollama` maps to `/root/.ollama` inside the container
 
-### 3. Validate
+### 3. Build Image
 
 ```bash
-nix flake check
-```
-
-### 4. Build Image
-
-```bash
-nix build .#raw    # Raw EFI disk image for USB (default)
-nix build .#iso    # ISO for testing in VM (optional)
+task build:linux:raw   # Raw EFI disk image for USB (requires KVM)
+task build:linux:iso   # ISO for testing in VM (optional)
 ```
 
 ### 5. Test in VM (Optional)
