@@ -34,6 +34,10 @@
     autosuggestions.enable = true;
     syntaxHighlighting.enable = true;
     histSize = 10000;
+    interactiveShellInit = ''
+      # Prevent zsh new-user setup wizard
+      [[ -f ~/.zshrc ]] || touch ~/.zshrc
+    '';
   };
 
   # Auto-login to TTY (no desktop environment needed)

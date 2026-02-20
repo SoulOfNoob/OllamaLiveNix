@@ -80,6 +80,31 @@ zstd -d nixos-*.img.zst
 
 If you need to change the NixOS config (NTFS UUID, timezone, etc.), edit the `.nix` files and push to `main`. GitHub Actions will build new images automatically.
 
+### 2b. Local ISO Build (Optional)
+
+Build an ISO locally for VM testing (raw-efi requires KVM, not available on macOS):
+
+```bash
+docker run --rm -it --platform linux/amd64 \
+  --name ollamalive-build \
+  -v "$(pwd)":/workspace \
+  -v ollamalive-nix-cache:/nix \
+  -w /workspace \
+  nixos/nix bash -c "
+    echo 'experimental-features = nix-command flakes' > /etc/nix/nix.conf
+    echo 'sandbox = false' >> /etc/nix/nix.conf
+    echo 'filter-syscalls = false' >> /etc/nix/nix.conf
+    echo 'max-jobs = auto' >> /etc/nix/nix.conf
+    echo 'cores = 0' >> /etc/nix/nix.conf
+    nix flake check
+    OUT=\$(nix build .#iso --no-link --print-out-paths)
+    mkdir -p /workspace/result
+    find \$OUT -type f \( -name '*.img' -o -name '*.iso' \) -exec cp -L {} /workspace/result/ \;
+  "
+```
+
+The ISO lands in `./result/`. The `ollamalive-nix-cache` volume caches the Nix store so only the first build is slow.
+
 ### 3. Flash to USB
 
 #### Initial setup
