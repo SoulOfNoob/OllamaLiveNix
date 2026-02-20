@@ -55,7 +55,9 @@ ollamalive/
 
 ### 1. Setup Build Environment
 
-Build on any Linux machine (e.g. Ubuntu 24 LTS):
+Choose one of:
+
+#### Option A: Native Linux (e.g. Ubuntu 24 LTS)
 
 ```bash
 # Install Nix (single-user, no daemon)
@@ -66,6 +68,27 @@ sh <(curl -L https://nixos.org/nix/install) --no-daemon
 mkdir -p ~/.config/nix
 echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
 ```
+
+#### Option B: macOS via Docker
+
+```bash
+docker run --rm -it --platform linux/amd64 \
+  --name ollamalive-build \
+  -v "$(pwd)":/workspace \
+  -v ollamalive-nix-cache:/nix \
+  -w /workspace \
+  nixos/nix bash -c "
+    echo 'experimental-features = nix-command flakes' > /etc/nix/nix.conf
+    echo 'sandbox = false' >> /etc/nix/nix.conf
+    echo 'filter-syscalls = false' >> /etc/nix/nix.conf
+    echo 'max-jobs = auto' >> /etc/nix/nix.conf
+    echo 'cores = 0' >> /etc/nix/nix.conf
+    nix flake check
+    nix build .#iso
+  "
+```
+
+The `ollamalive-nix-cache` volume caches the Nix store across runs so only the first build is slow.
 
 ### 2. Configure
 
