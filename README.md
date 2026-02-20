@@ -107,7 +107,26 @@ diskutil unmountDisk /dev/diskX
 sudo dd if=nixos-*.img of=/dev/rdiskX bs=4m count=$BLOCKS status=progress
 ```
 
-### 4. First Boot
+### 4. Test in VM (Optional)
+
+To verify the config before flashing, download the `nixos-*.iso.zst` from Releases and test in UTM:
+
+1. Decompress: `zstd -d nixos-*.iso.zst`
+2. Open UTM → **Create new VM** → **Emulate** (not Virtualize)
+3. Architecture: **x86_64**, System: **Standard PC (Q35)**
+4. RAM: **4096 MB**, skip storage
+5. In VM settings: uncheck **UEFI Boot** under QEMU
+6. Drives → **Import** the `.iso`, set interface to **IDE**, move to top of boot order
+
+It will be slow under emulation but boots to TTY with auto-login. GPU and Docker won't work, but you can verify the config:
+
+```bash
+systemctl list-units --failed
+ip addr
+cat /etc/ssh/sshd_config
+```
+
+### 5. First Boot
 
 Jump to [First Boot on Hardware](#first-boot-on-hardware).
 
