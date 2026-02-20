@@ -32,7 +32,7 @@
 
   # ── Networking ────────────────────────────────────────────────
   networking.networkmanager.enable = true;
-  # Enable SSH so you can manage it remotely from Windows
+  # Enable SSH so you can manage it remotely
   services.openssh = {
     enable = true;
     settings = {
@@ -128,7 +128,8 @@
     usbutils
     git
     curl
-    vim
+    nano
+    tree
 
     # Networking
     inetutils
