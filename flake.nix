@@ -15,11 +15,6 @@
       system = "x86_64-linux";
     in
     {
-      nixosConfigurations.OllamaLive = nixpkgs.lib.nixosSystem {
-        inherit system;
-        modules = [ ./configuration.nix ];
-      };
-
       packages.${system} = rec {
         iso = nixos-generators.nixosGenerate {
           inherit system;
