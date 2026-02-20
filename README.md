@@ -83,12 +83,13 @@ docker run --rm -it --platform linux/amd64 \
     echo 'filter-syscalls = false' >> /etc/nix/nix.conf
     echo 'max-jobs = auto' >> /etc/nix/nix.conf
     echo 'cores = 0' >> /etc/nix/nix.conf
-    nix flake check
-    nix build .#iso
+    OUT=\$(nix build .#iso --no-link --print-out-paths)
+    mkdir -p /workspace/result
+    find \$OUT -type f \( -name '*.img' -o -name '*.iso' \) -exec cp -L {} /workspace/result/ \;
   "
 ```
 
-The `ollamalive-nix-cache` volume caches the Nix store across runs so only the first build is slow.
+The image lands in `./result/` on your host. The `ollamalive-nix-cache` volume caches the Nix store across runs so only the first build is slow.
 
 ### 2. Configure
 
