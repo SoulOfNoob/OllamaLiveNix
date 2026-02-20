@@ -47,25 +47,75 @@ Create a bootable USB stick running a minimal NixOS system that turns the gaming
 ```text
 ollamalive/
 ├── .github/workflows/
-│   └── build.yml          # CI: builds ISO + raw images on push
+│   ├── build.yml          # CI: builds ISO + raw images, creates release
+│   └── pr.yml             # PR: builds ISO for validation
 ├── configuration.nix      # Main system config
 ├── flake.nix              # Flake wrapper for reproducible builds
 └── README.md              # This file
 ```
 
-## Build Steps
+## Quick Start
 
-### GitHub Actions (recommended)
+Choose your path:
 
-Push to `main` to automatically build both ISO and raw-efi images. Download them from the Actions tab under artifacts. You can also trigger a build manually via `workflow_dispatch`.
+- **[macOS Path](#macos-path)** — Download pre-built image from GitHub Releases, flash to USB
+- **[Linux Path](#linux-path)** — Build locally with Nix, flash to USB
 
-### Local Build
+---
 
-#### 1. Setup Build Environment
+## macOS Path
 
-Choose one of:
+### 1. Download Image
 
-#### Option A: Native Linux (e.g. Ubuntu 24 LTS)
+Go to the [Releases](../../releases) page and download the latest `nixos-*.img.zst` (raw-efi image for USB).
+
+Decompress before flashing:
+
+```bash
+brew install zstd   # if not installed
+zstd -d nixos-*.img.zst
+```
+
+### 2. Configure (before first build)
+
+If you need to change the NixOS config (NTFS UUID, timezone, etc.), edit the `.nix` files and push to `main`. GitHub Actions will build new images automatically.
+
+### 3. Flash to USB
+
+#### Initial setup
+
+```bash
+diskutil list
+diskutil unmountDisk /dev/diskX
+sudo dd if=nixos-*.img of=/dev/rdiskX bs=4m status=progress
+
+# Create PERSIST partition (install e2fsprogs first: brew install e2fsprogs)
+sudo gdisk /dev/diskX   # → n, accept defaults, w
+diskutil unmountDisk /dev/diskX
+$(brew --prefix)/opt/e2fsprogs/sbin/mkfs.ext4 -L PERSIST /dev/diskXs3
+```
+
+> **Note:** macOS can't mount ext4. On first Linux boot, run:
+> `sudo mkdir -p /persist/docker /persist/ssh`
+
+#### System update
+
+```bash
+IMG_SIZE=$(stat -f %z nixos-*.img)
+BLOCKS=$((IMG_SIZE / 4194304))
+diskutil unmountDisk /dev/diskX
+sudo dd if=nixos-*.img of=/dev/rdiskX bs=4m count=$BLOCKS status=progress
+```
+
+### 4. First Boot
+
+Jump to [First Boot on Hardware](#first-boot-on-hardware).
+
+---
+
+## Linux Path
+
+### 1. Setup Nix
 
 ```bash
 # Install Nix (single-user, no daemon)
@@ -77,28 +127,6 @@ mkdir -p ~/.config/nix
 echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
 ```
 
-#### Option B: macOS via Docker
-
-```bash
-docker run --rm -it --platform linux/amd64 \
-  --name ollamalive-build \
-  -v "$(pwd)":/workspace \
-  -v ollamalive-nix-cache:/nix \
-  -w /workspace \
-  nixos/nix bash -c "
-    echo 'experimental-features = nix-command flakes' > /etc/nix/nix.conf
-    echo 'sandbox = false' >> /etc/nix/nix.conf
-    echo 'filter-syscalls = false' >> /etc/nix/nix.conf
-    echo 'max-jobs = auto' >> /etc/nix/nix.conf
-    echo 'cores = 0' >> /etc/nix/nix.conf
-    OUT=\$(nix build .#iso --no-link --print-out-paths)
-    mkdir -p /workspace/result
-    find \$OUT -type f \( -name '*.img' -o -name '*.iso' \) -exec cp -L {} /workspace/result/ \;
-  "
-```
-
-The image lands in `./result/` on your host. The `ollamalive-nix-cache` volume caches the Nix store across runs so only the first build is slow.
-
 ### 2. Configure
 
 - Get NTFS drive UUID: run `blkid` on any Linux system and replace `YOUR-NTFS-DRIVE-UUID-HERE` in config
@@ -109,11 +137,7 @@ The image lands in `./result/` on your host. The `ollamalive-nix-cache` volume c
 ### 3. Validate
 
 ```bash
-# With flake
 nix flake check
-
-# Without flake
-nix-instantiate --eval -E 'import ./configuration.nix'
 ```
 
 ### 4. Build Image
@@ -131,20 +155,12 @@ Boot the ISO in QEMU or VirtualBox. GPU/Ollama won't work but validates base sys
 
 #### First flash
 
-Write the full system image, then create the persistent partition in the remaining space:
-
 ```bash
-# Identify the USB device
 lsblk
-
-# Flash the system image
 sudo dd if=result/nixos.img of=/dev/sdX bs=4M status=progress conv=fsync
 
-# Create the PERSIST partition in remaining space
-sudo fdisk /dev/sdX
-# → n (new partition), accept defaults, w (write)
-
-# Format and label it
+# Create PERSIST partition in remaining space
+sudo fdisk /dev/sdX   # → n, accept defaults, w
 sudo mkfs.ext4 -L PERSIST /dev/sdX3
 
 # Pre-create directories for bind mounts
@@ -156,20 +172,15 @@ sudo umount /mnt/persist
 
 #### Subsequent flashes (system update)
 
-Only overwrite the system partitions, leaving PERSIST intact:
-
 ```bash
-# Get the exact image size in bytes
 IMG_SIZE=$(stat --format=%s result/nixos.img)
-
-# Calculate block count (4M blocks)
 BLOCKS=$((IMG_SIZE / 4194304))
-
-# Flash only the system portion
 sudo dd if=result/nixos.img of=/dev/sdX bs=4M count=$BLOCKS status=progress conv=fsync
 ```
 
-### 7. First Boot on Hardware
+---
+
+## First Boot on Hardware
 
 1. Boot gaming PC from USB
 2. SSH in from server: `ssh ollamalive@<gaming-pc-ip>`
@@ -192,5 +203,5 @@ sudo dd if=result/nixos.img of=/dev/sdX bs=4M count=$BLOCKS status=progress conv
 
 ## Iteration Workflow
 
-Edit `configuration.nix` → `nix build .#raw` → reflash system partitions only → reboot.
+Edit `configuration.nix` → push to `main` (or `nix build .#raw` locally) → download/reflash system partitions only → reboot.
 Docker state and SSH keys persist across updates.

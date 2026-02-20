@@ -3,6 +3,9 @@ name: Build NixOS Images
 on:
   push:
     branches: [main]
+    paths:
+      - "*.nix"
+      - ".github/workflows/build.yml"
   workflow_dispatch:
 
 permissions:
@@ -30,6 +33,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Flake check
+        run: nix flake check
+
       - name: Build ${{ matrix.target }}
         run: nix build .#${{ matrix.target }} --print-build-logs
 
@@ -37,7 +43,12 @@ jobs:
         run: |
           mkdir -p out
           find result/ -type f \( -name '*.img' -o -name '*.iso' \) -exec cp {} out/ \;
-          cd out && for f in *; do sha256sum "$f" > "$f.sha256"; done
+          cd out
+          for f in *; do
+            zstd -T0 "$f" -o "$f.zst"
+            sha256sum "$f.zst" > "$f.zst.sha256"
+            rm "$f"
+          done
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -62,7 +73,9 @@ jobs:
           body: |
             Automated build from commit ${{ github.sha }}.
 
-            **Downloads:**
-            - `nixos-*.iso` — Boot in VM for testing
-            - `nixos-*.img` — Flash to USB with `dd`
+            **Downloads (zstd compressed):**
+            - `nixos-*.iso.zst` — Boot in VM for testing
+            - `nixos-*.img.zst` — Flash to USB with `dd`
+
+            Decompress with: `zstd -d <file>`
           files: artifacts/**/*
