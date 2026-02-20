@@ -97,6 +97,8 @@ $(brew --prefix)/opt/e2fsprogs/sbin/mkfs.ext4 -L PERSIST /dev/diskXs3
 
 > **Note:** macOS can't mount ext4. On first Linux boot, run:
 > `sudo mkdir -p /persist/docker /persist/ssh`
+> Then add your SSH public key:
+> `sudo sh -c 'cat >> /persist/ssh/authorized_keys' < ~/.ssh/id_ed25519.pub`
 
 #### System update
 
@@ -182,10 +184,11 @@ sudo dd if=result/nixos.img of=/dev/sdX bs=4M status=progress conv=fsync
 sudo fdisk /dev/sdX   # → n, accept defaults, w
 sudo mkfs.ext4 -L PERSIST /dev/sdX3
 
-# Pre-create directories for bind mounts
+# Pre-create directories and add SSH key
 sudo mkdir -p /mnt/persist
 sudo mount /dev/sdX3 /mnt/persist
 sudo mkdir -p /mnt/persist/docker /mnt/persist/ssh
+cat ~/.ssh/id_ed25519.pub | sudo tee /mnt/persist/ssh/authorized_keys
 sudo umount /mnt/persist
 ```
 

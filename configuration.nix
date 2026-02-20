@@ -18,13 +18,22 @@
   # ── System Basics ─────────────────────────────────────────────
   system.stateVersion = "25.05";
   networking.hostName = "OllamaLive";
-  time.timeZone = "Europe/Berlin"; # adjust to your timezone
+  time.timeZone = "Europe/Berlin";
+  console.keyMap = "de";
 
   # Passwordless auto-login for appliance use
   users.users.ollamalive = {
     isNormalUser = true;
     extraGroups = [ "docker" "video" "render" "wheel" ];
+    shell = pkgs.zsh;
     initialPassword = ""; # set a real password or use SSH keys
+  };
+
+  programs.zsh = {
+    enable = true;
+    autosuggestions.enable = true;
+    syntaxHighlighting.enable = true;
+    histSize = 10000;
   };
 
   # Auto-login to TTY (no desktop environment needed)
@@ -37,8 +46,12 @@
     enable = true;
     settings = {
       PermitRootLogin = "no";
-      PasswordAuthentication = true; # switch to false once you add SSH keys
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
     };
+    extraConfig = ''
+      AuthorizedKeysFile .ssh/authorized_keys /persist/ssh/authorized_keys
+    '';
   };
 
   # ── NVIDIA Drivers ────────────────────────────────────────────
