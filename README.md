@@ -46,14 +46,22 @@ Create a bootable USB stick running a minimal NixOS system that turns the gaming
 
 ```text
 ollamalive/
-├── configuration.nix      # Main system config (provided by Claude)
+├── .github/workflows/
+│   └── build.yml          # CI: builds ISO + raw images on push
+├── configuration.nix      # Main system config
 ├── flake.nix              # Flake wrapper for reproducible builds
 └── README.md              # This file
 ```
 
 ## Build Steps
 
-### 1. Setup Build Environment
+### GitHub Actions (recommended)
+
+Push to `main` to automatically build both ISO and raw-efi images. Download them from the Actions tab under artifacts. You can also trigger a build manually via `workflow_dispatch`.
+
+### Local Build
+
+#### 1. Setup Build Environment
 
 Choose one of:
 
