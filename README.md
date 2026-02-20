@@ -8,7 +8,7 @@ Create a bootable USB stick running a minimal NixOS system that turns the gaming
 
 - **Gaming PC:** AMD Ryzen 7 7800X3D, 32GB DDR5-6000, RTX 3090 24GB
 - **Server:** Hosts Open WebUI and runs lighter models on 5060 Ti 16GB
-- **USB Stick:** Boot drive for NixOS (read-only root + optional persistent partition)
+- **USB Stick:** Boot drive for NixOS (system partition + persistent ext4 partition)
 - **NTFS Drive:** Shared between Windows and Linux, stores model files
 
 ## Architecture
@@ -32,7 +32,6 @@ Create a bootable USB stick running a minimal NixOS system that turns the gaming
 
 ## Nice to Haves
 
-- Small persistent ext4 partition on the USB for container state/logs
 - Fallback: separate ext4 drive for models if NTFS write causes issues
 - tmux or similar for persistent SSH sessions
 - nvtop for GPU monitoring
@@ -88,19 +87,54 @@ nix-instantiate --eval -E 'import ./configuration.nix'
 ### 4. Build Image
 
 ```bash
-nix build .#iso    # ISO for testing in VM
-nix build .#raw    # Raw EFI disk image for USB
+nix build .#raw    # Raw EFI disk image for USB (default)
+nix build .#iso    # ISO for testing in VM (optional)
 ```
 
-### 5. Test in VM (Optional but Recommended)
+### 5. Test in VM (Optional)
 
-Boot ISO in QEMU or VirtualBox. GPU/Ollama won't work but validates base system, networking, mounts, and SSH.
+Boot the ISO in QEMU or VirtualBox. GPU/Ollama won't work but validates base system, networking, mounts, and SSH.
 
 ### 6. Flash to USB
 
+#### First flash
+
+Write the full system image, then create the persistent partition in the remaining space:
+
 ```bash
+# Identify the USB device
 lsblk
+
+# Flash the system image
 sudo dd if=result/nixos.img of=/dev/sdX bs=4M status=progress conv=fsync
+
+# Create the PERSIST partition in remaining space
+sudo fdisk /dev/sdX
+# → n (new partition), accept defaults, w (write)
+
+# Format and label it
+sudo mkfs.ext4 -L PERSIST /dev/sdX3
+
+# Pre-create directories for bind mounts
+sudo mkdir -p /mnt/persist
+sudo mount /dev/sdX3 /mnt/persist
+sudo mkdir -p /mnt/persist/docker /mnt/persist/ssh
+sudo umount /mnt/persist
+```
+
+#### Subsequent flashes (system update)
+
+Only overwrite the system partitions, leaving PERSIST intact:
+
+```bash
+# Get the exact image size in bytes
+IMG_SIZE=$(stat --format=%s result/nixos.img)
+
+# Calculate block count (4M blocks)
+BLOCKS=$((IMG_SIZE / 4194304))
+
+# Flash only the system portion
+sudo dd if=result/nixos.img of=/dev/sdX bs=4M count=$BLOCKS status=progress conv=fsync
 ```
 
 ### 7. First Boot on Hardware
@@ -108,10 +142,23 @@ sudo dd if=result/nixos.img of=/dev/sdX bs=4M status=progress conv=fsync
 1. Boot gaming PC from USB
 2. SSH in from server: `ssh ollamalive@<gaming-pc-ip>`
 3. Verify GPU: `nvidia-smi`
-4. Test Ollama: `docker logs ollama`
-5. Test NTFS writes: `ollama pull llama3.2:7b` (via docker exec or API)
-6. Point Open WebUI on server to `http://<gaming-pc-ip>:11434`
+4. Verify persistent mount: `df -h /persist`
+5. Test Ollama: `docker logs ollama`
+6. Test NTFS writes: `ollama pull llama3.2:7b` (via docker exec or API)
+7. Point Open WebUI on server to `http://<gaming-pc-ip>:11434`
+
+## USB Partition Layout
+
+```text
+/dev/sdX
+├── sdX1  ESP (boot)           ~256 MB   ← system image
+├── sdX2  Root (NixOS)         ~2-8 GB   ← system image
+└── sdX3  PERSIST (ext4)       remaining ← survives reflash
+              ├── docker/                   Docker container state
+              └── ssh/                      SSH host keys
+```
 
 ## Iteration Workflow
 
-Edit `configuration.nix` → rebuild image → reflash USB → reboot. All changes are declarative and tracked in git.
+Edit `configuration.nix` → `nix build .#raw` → reflash system partitions only → reboot.
+Docker state and SSH keys persist across updates.

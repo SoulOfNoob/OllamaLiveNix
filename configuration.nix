@@ -111,13 +111,26 @@
     ];
   };
 
-  # ── Persistent Storage (optional, on USB stick) ───────────────
-  # If you add a second partition on the USB for persistent data:
-  # fileSystems."/persist" = {
-  #   device = "/dev/disk/by-label/PERSIST";
-  #   fsType = "ext4";
-  #   options = [ "rw" "nofail" ];
-  # };
+  # ── Persistent Storage (on USB stick) ─────────────────────────
+  # Separate ext4 partition labeled PERSIST on the same USB drive.
+  # Created manually after first flash; survives system reflashes.
+  fileSystems."/persist" = {
+    device = "/dev/disk/by-label/PERSIST";
+    fsType = "ext4";
+    options = [ "rw" "nofail" ];
+  };
+
+  # Bind-mount Docker state and SSH host keys to the persistent partition
+  # so they survive system reflashes.
+  fileSystems."/var/lib/docker" = {
+    device = "/persist/docker";
+    options = [ "bind" "nofail" ];
+  };
+
+  fileSystems."/etc/ssh" = {
+    device = "/persist/ssh";
+    options = [ "bind" "nofail" ];
+  };
 
   # ── Useful System Packages ────────────────────────────────────
   environment.systemPackages = with pkgs; [

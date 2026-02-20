@@ -19,7 +19,7 @@
       packages.${system} = rec {
         iso = nixosConfig.config.system.build.images.iso;
         raw = nixosConfig.config.system.build.images.raw-efi;
-        default = iso;
+        default = raw;
       };
     };
 }
