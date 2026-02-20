@@ -130,9 +130,6 @@
     curl
     vim
 
-    # NVIDIA / CUDA
-    cudaPackages.cudatoolkit
-
     # Networking
     inetutils
     tmux               # keep sessions alive after SSH disconnect
