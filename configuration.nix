@@ -2,21 +2,21 @@
 
 {
   # ── Boot & Image ──────────────────────────────────────────────
-  # This config is intended to be built as a bootable ISO/USB image
-  # using nixos-generators or the built-in ISO module.
-  # For ISO: imports = [ <nixpkgs/nixos/modules/installer/cd-dvd/iso-image.nix> ];
-  # For USB with persistence, use nixos-generators with the "raw" format.
-
-  imports = [
-    # If building an ISO image:
-    # "${toString pkgs.path}/nixos/modules/installer/cd-dvd/iso-image.nix"
-  ];
+  # Images are built via `nix build .#iso` or `nix build .#raw` using
+  # the native NixOS image modules (system.build.images.*).
+  # The image modules override root FS and bootloader; defaults here
+  # satisfy NixOS assertions for the base configuration.
+  fileSystems."/" = lib.mkDefault {
+    device = "none";
+    fsType = "tmpfs";
+  };
+  boot.loader.grub.enable = lib.mkDefault false;
 
   # ── Unfree Packages ──────────────────────────────────────────
   nixpkgs.config.allowUnfree = true;
 
   # ── System Basics ─────────────────────────────────────────────
-  system.stateVersion = "24.11";
+  system.stateVersion = "25.05";
   networking.hostName = "OllamaLive";
   time.timeZone = "Europe/Berlin"; # adjust to your timezone
 
@@ -123,7 +123,7 @@
   environment.systemPackages = with pkgs; [
     # System tools
     htop
-    nvtop              # GPU monitoring
+    nvtopPackages.full # GPU monitoring
     pciutils
     usbutils
     git

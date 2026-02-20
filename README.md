@@ -22,7 +22,7 @@ Create a bootable USB stick running a minimal NixOS system that turns the gaming
 ## Must Haves
 
 - **Declarative NixOS config** — entire system defined in `configuration.nix`, reproducible and version-controlled
-- **Bootable USB image** — built via `nixos-generators`, flashable with `dd`
+- **Bootable USB image** — built via native NixOS image modules, flashable with `dd`
 - **NVIDIA proprietary drivers + CUDA** — required for GPU inference
 - **nvidia-container-toolkit** — GPU passthrough into Docker containers
 - **Docker + Ollama container** — starts automatically on boot, listens on `0.0.0.0:11434`
@@ -56,37 +56,17 @@ ollamalive/
 
 ### 1. Setup Build Environment
 
-Building NixOS images requires a Linux environment. Choose one of:
-
-#### Option A: Native Linux (server or any Linux machine)
+Build on any Linux machine (e.g. Ubuntu 24 LTS):
 
 ```bash
-# Install Nix
-sh <(curl -L https://nixos.org/nix/install) --daemon
+# Install Nix (single-user, no daemon)
+sh <(curl -L https://nixos.org/nix/install) --no-daemon
+. ~/.nix-profile/etc/profile.d/nix.sh
 
 # Enable flakes
 mkdir -p ~/.config/nix
 echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
-
-# Install nixos-generators
-nix-env -iA nixpkgs.nixos-generators
 ```
-
-#### Option B: macOS via Docker
-
-No Nix installation needed — Docker Desktop provides the Linux environment:
-
-```bash
-docker run --rm -it --platform linux/amd64 \
-  -v "$(pwd)":/workspace \
-  -w /workspace \
-  nixos/nix bash -c "
-    echo 'experimental-features = nix-command flakes' > /etc/nix/nix.conf
-    nix build .#iso
-  "
-```
-
-Replace `.#iso` with `.#raw` to build the USB image. The result appears in `./result/` on the host.
 
 ### 2. Configure
 
@@ -108,13 +88,8 @@ nix-instantiate --eval -E 'import ./configuration.nix'
 ### 4. Build Image
 
 ```bash
-# With flake (recommended)
 nix build .#iso    # ISO for testing in VM
 nix build .#raw    # Raw EFI disk image for USB
-
-# Without flake
-nixos-generate -f iso -c ./configuration.nix -o result
-nixos-generate -f raw -c ./configuration.nix -o result
 ```
 
 ### 5. Test in VM (Optional but Recommended)
@@ -124,11 +99,8 @@ Boot ISO in QEMU or VirtualBox. GPU/Ollama won't work but validates base system,
 ### 6. Flash to USB
 
 ```bash
-# From Mac
-diskutil list
-diskutil unmountDisk /dev/diskX
-sudo dd if=result/nixos.img of=/dev/rdiskX bs=4M status=progress
-diskutil eject /dev/diskX
+lsblk
+sudo dd if=result/nixos.img of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 ### 7. First Boot on Hardware
