@@ -3,6 +3,9 @@ name: PR Build Check
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "*.nix"
+      - ".github/workflows/pr.yml"
 
 jobs:
   build-iso:

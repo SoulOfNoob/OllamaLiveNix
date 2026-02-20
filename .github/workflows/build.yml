@@ -3,6 +3,9 @@ name: Build NixOS Images
 on:
   push:
     branches: [main]
+    paths:
+      - "*.nix"
+      - ".github/workflows/build.yml"
   workflow_dispatch:
 
 permissions:
